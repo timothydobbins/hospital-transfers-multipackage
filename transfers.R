@@ -10,26 +10,6 @@ temp <- read_csv(file="simple.csv") %>%
          sep_tmp = sepdate)
 
 
-# Plot data with with paired dotplot
-plot_df <- read_csv(file="simple.csv") %>% 
-  group_by(id) %>% 
-  mutate(episode = row_number(), id.ep = id + 0.1*episode) %>% 
-  gather(key=inout, value=date, -id, -transfer, -episode, -id.ep) %>% 
-  mutate(inout=case_when(
-    inout == "adm" ~ "admission",
-    inout == "sep" & transfer == 0 ~ "discharge",
-    inout == "sep" & transfer == 1 ~ "transfer"
-  ))
-
-#Generate the plot
-ggplot(data=plot_df, aes(x=date, y=id.ep)) + 
-  geom_point(aes(color=inout)) + 
-  geom_line(aes(group=id.ep)) + 
-  scale_y_reverse(breaks = seq(1:10), minor_breaks = NULL) + theme_bw() +
-  labs(y="ID", x="Date", colour="Status")
-
-
-
 # Begin working on transfers ----------------------------------------------
 temp_melt <- melt(temp, 
      id.vars=c("id", "transfer", "episode", "admdate", "sepdate"), 
@@ -41,12 +21,10 @@ temp_melt <- melt(temp,
   arrange(id, time_adj, episode, -inout) %>% 
   group_by(id) %>% 
   mutate(cumsum = cumsum(inout),
-         trans.tmp = as.numeric(cumsum==1 & (row_number()==1 | lag(cumsum)>0)),
          newstay = as.numeric(cumsum==1 & (row_number()==1 | lag(cumsum)==0)),
-         stayseq = cumsum(newstay),
-         transseq = cumsum(trans.tmp) - 1)
+         stayseq = cumsum(newstay))
 
-filter(temp_melt, id %in% c(7,9))
+#filter(temp_melt, id %in% c(7,9))
 
 temp_trans <- dcast(temp_melt, id + episode + transfer + stayseq  ~ variable, value.var="time") %>% 
   arrange(id, episode) %>% 
@@ -55,11 +33,11 @@ temp_trans <- dcast(temp_melt, id + episode + transfer + stayseq  ~ variable, va
          sepdate_fin = max(sep_tmp)) %>% 
   rename(admdate = adm_tmp, sepdate = sep_tmp)  %>% 
   select(id, episode, admdate, sepdate, transfer, stayseq, transseq, sepdate_fin) %>% 
-  mutate(totlos = sepdate_fin - admdate)
+  mutate(totlos = ifelse(sepdate_fin - admdate==0, 1, sepdate_fin - admdate))
 
-filter(temp_trans, id %in% c(7,9))
+# filter(temp_trans, id %in% c(7,9))
 
-filter(temp_trans, transseq == 0) %>% 
-  ungroup %>% 
-  summarise(mean = mean(totlos))
+# filter(temp_trans, transseq == 0) %>% 
+#   ungroup %>% 
+#   summarise(mean = mean(totlos))
 
