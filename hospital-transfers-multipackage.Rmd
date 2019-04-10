@@ -1,6 +1,10 @@
 ---
 title: "Revisiting hospital transfers"
-output: html_document
+output:
+  pdf_document: default
+  html_document:
+    toc: true
+    toc_float: true
 ---
 
 ```{r setup, include=FALSE}
